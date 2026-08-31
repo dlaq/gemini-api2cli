@@ -26,6 +26,9 @@ COPY . .
 # Install all workspace deps (including devDependencies — TS toolchain).
 RUN npm ci --ignore-scripts
 
+# Generate the git/version source files required by core/cli before TypeScript build.
+RUN npm run generate
+
 # Build in dependency order:
 #   core → devtools → cli → a2a-server.
 RUN npm run build --workspace @google/gemini-cli-core \
