@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "Dockerfile.a2a.prod"
+      - "package.json"
+      - "package-lock.json"
+      - "packages/**"
+      - "scripts/**"
   workflow_call:
     secrets:
       DOCKERHUB_USERNAME:
@@ -23,7 +29,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: dlaq/gemini-api2cli
-          ref: main
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
           fetch-depth: 1
           persist-credentials: false
 
