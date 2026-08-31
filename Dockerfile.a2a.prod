@@ -49,8 +49,12 @@ ENV NODE_ENV=production \
     CODER_AGENT_PORT=41242 \
     CODER_AGENT_HOST=0.0.0.0
 
-# Re-install only runtime deps (no devDependencies). Identical lockfile
-# means every prod image gets the exact same dependency tree.
+# Reuse the dependency tree installed in the builder. The upstream runtime
+# stage previously ran npm ci before copying workspace scripts; npm can still
+# execute workspace lifecycle hooks (for example vscode-ide-companion's
+# generate:notices), which makes the image build fail because those scripts
+# are not present yet. Copying the already-installed tree is deterministic
+# and avoids that ordering bug.
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY packages/cli/package.json packages/cli/
@@ -59,8 +63,7 @@ COPY packages/a2a-server/package.json packages/a2a-server/
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/test-utils/package.json packages/test-utils/
 COPY packages/vscode-ide-companion/package.json packages/vscode-ide-companion/
-RUN npm ci --omit=dev --ignore-scripts \
- && npm cache clean --force
+COPY --from=builder /build/node_modules ./node_modules
 
 # Copy compiled output + the bits the runtime actually needs.
 COPY --from=builder /build/packages/core/dist           packages/core/dist
