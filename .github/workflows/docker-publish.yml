@@ -1,0 +1,60 @@
+name: Build and publish Docker image
+
+on:
+  workflow_call:
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_PASSWORD:
+        required: true
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout gemini-api2cli
+        uses: actions/checkout@v7
+        with:
+          repository: dlaq/gemini-api2cli
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Read source revision
+        id: source
+        shell: bash
+        run: echo "sha_short=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile.a2a.prod
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/gemini-api2cli:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/gemini-api2cli:${{ steps.source.outputs.sha_short }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/dlaq/gemini-api2cli
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha_short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
