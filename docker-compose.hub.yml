@@ -1,0 +1,21 @@
+services:
+  gemini-api2cli:
+    image: ${DOCKER_IMAGE:-YOUR_DOCKERHUB_USERNAME/gemini-api2cli:latest}
+    container_name: gemini-api2cli
+    restart: unless-stopped
+    init: true
+
+    ports:
+      - "41242:41242"
+
+    environment:
+      GEMINI_PROMPT_API_TOKEN: "${GEMINI_PROMPT_API_TOKEN:-change-this-token}"
+      CODER_AGENT_HOST: "0.0.0.0"
+      CODER_AGENT_PORT: "41242"
+      ENABLE_A2A: "false"
+
+    volumes:
+      - gemini_api2cli_login:/home/node/.gemini
+
+volumes:
+  gemini_api2cli_login:
