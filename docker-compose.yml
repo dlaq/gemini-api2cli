@@ -1,0 +1,58 @@
+name: gemini-api2cli
+
+services:
+  gemini-api2cli:
+    # The image is built and published by this repository's GitHub Actions.
+    # If your Docker Hub namespace is not "dlaq", override GEMINI_API2CLI_IMAGE
+    # in .env, for example:
+    # GEMINI_API2CLI_IMAGE=yourname/gemini-api2cli:latest
+    image: "${GEMINI_API2CLI_IMAGE:-dlaq/gemini-api2cli:latest}"
+    container_name: gemini-api2cli
+    restart: unless-stopped
+    init: true
+    pull_policy: always
+
+    ports:
+      - "${GEMINI_API2CLI_PORT:-41242}:41242"
+
+    environment:
+      # Change this in .env before exposing the service to the Internet.
+      GEMINI_PROMPT_API_TOKEN: "${GEMINI_PROMPT_API_TOKEN:-root}"
+      CODER_AGENT_HOST: "0.0.0.0"
+      CODER_AGENT_PORT: "41242"
+      ENABLE_A2A: "${ENABLE_A2A:-false}"
+
+      # The production image runs as the non-root 'node' user.
+      # Keeping HOME fixed makes Google/Gemini credentials live under
+      # /home/node/.gemini, which is persisted by the named volume below.
+      HOME: "/home/node"
+
+      # Optional outbound proxy.
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      NO_PROXY: "${NO_PROXY:-127.0.0.1,localhost}"
+
+    volumes:
+      # Persist the whole node home directory so OAuth credentials,
+      # ~/.gemini and related per-user state survive container recreation.
+      - gemini_api2cli_home:/home/node
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:41242/manage').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  gemini_api2cli_home:
