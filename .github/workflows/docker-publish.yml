@@ -10,6 +10,7 @@ on:
       - "package-lock.json"
       - "packages/**"
       - "scripts/**"
+      - ".github/workflows/docker-publish.yml"
   workflow_call:
     secrets:
       DOCKERHUB_USERNAME:
@@ -55,7 +56,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.a2a.prod
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/gemini-api2cli:latest
