@@ -831,13 +831,16 @@ async function getPromptApiCredentialQuotaPayload(
     const client = createPromptCredentialOAuthClient(state.settings.proxyUrl);
     client.setCredentials(credentials);
 
-    // Headless shim: no interactive validation, telemetry is best-effort.
-    // setupUser's signature demands a full Config, but in v0.38.1 it only
-    // invokes getValidationHandler(). Supplying a minimal shim avoids
-    // instantiating the heavy Config graph just to fetch the user profile.
+    // Headless shim: no interactive validation and no usage telemetry.
+    // setupUser accepts a full Config, but Prompt API intentionally avoids
+    // constructing the heavy CLI Config graph just to resolve Code Assist
+    // profile/project data.  Newer core versions also consult
+    // getUsageStatisticsEnabled() while emitting onboarding telemetry, so the
+    // shim must explicitly disable it.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const configShim = {
       getValidationHandler: () => undefined,
+      getUsageStatisticsEnabled: () => false,
     } as unknown as Config;
     const userData = await setupUser(client, configShim);
     const codeAssistServer = new CodeAssistServer(
@@ -3039,9 +3042,14 @@ export function createPromptApiRouter(
       // 4xx auth errors, etc.). We funnel its errors through the
       // same applyCredentialCooldown path so a permanently-broken
       // credential surfaces as a "re-login needed" badge.
+      // Headless setupUser shim: disable interactive validation and usage
+      // telemetry.  setupUser's onboarding telemetry path now calls
+      // getUsageStatisticsEnabled(), even though the Prompt API does not
+      // otherwise need a full CLI Config instance.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       const configShim = {
         getValidationHandler: () => undefined,
+        getUsageStatisticsEnabled: () => false,
       } as unknown as Config;
       let projectId: string;
       try {
