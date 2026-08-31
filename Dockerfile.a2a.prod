@@ -60,6 +60,14 @@ COPY packages/test-utils/package.json packages/test-utils/
 COPY packages/vscode-ide-companion/package.json packages/vscode-ide-companion/
 COPY --from=builder /build/node_modules ./node_modules
 
+# npm workspaces may keep version-conflicting dependencies inside each
+# workspace instead of hoisting them to the repository root.  The A2A server
+# currently keeps @a2a-js/sdk here, and core/cli also have nested runtime
+# dependencies.  Copy those workspace-local dependency trees as well.
+COPY --from=builder /build/packages/a2a-server/node_modules ./packages/a2a-server/node_modules
+COPY --from=builder /build/packages/core/node_modules       ./packages/core/node_modules
+COPY --from=builder /build/packages/cli/node_modules        ./packages/cli/node_modules
+
 # Copy compiled output + the bits the runtime actually needs.
 COPY --from=builder /build/packages/core/dist           packages/core/dist
 COPY --from=builder /build/packages/core/index.ts       packages/core/
@@ -72,6 +80,11 @@ COPY --from=builder /build/packages/a2a-server/dist     packages/a2a-server/dist
 # docker-compose's `user: "1000:1000"` mount.
 RUN chown -R node:node /app
 USER node
+
+# Fail the image build immediately if a workspace-local runtime dependency
+# is missing, instead of discovering it only after the container starts.
+RUN cd /app/packages/a2a-server \
+ && node -e "import('@a2a-js/sdk').then(()=>console.log('a2a sdk ok'))"
 
 EXPOSE 41242
 CMD ["node", "packages/a2a-server/dist/src/http/server.js"]
