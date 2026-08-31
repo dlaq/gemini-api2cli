@@ -17,25 +17,17 @@
 FROM node:20-slim AS builder
 WORKDIR /build
 
-# Copy package metadata first so Docker can cache the npm install layer
-# across source-only changes.
-COPY package.json package-lock.json ./
-COPY packages/core/package.json packages/core/
-COPY packages/cli/package.json packages/cli/
-COPY packages/devtools/package.json packages/devtools/
-COPY packages/a2a-server/package.json packages/a2a-server/
-COPY packages/sdk/package.json packages/sdk/
-COPY packages/test-utils/package.json packages/test-utils/
-COPY packages/vscode-ide-companion/package.json packages/vscode-ide-companion/
+# Copy the complete workspace before npm ci. Some npm workspace lifecycle
+# hooks are still executed even with --ignore-scripts in this repository
+# (notably vscode-ide-companion generate:notices), so their source scripts
+# must already exist when dependency installation runs.
+COPY . .
 
 # Install all workspace deps (including devDependencies — TS toolchain).
-# --ignore-scripts skips the husky/bundle prepare hooks which would try
-# to rebuild things we haven't copied yet.
 RUN npm ci --ignore-scripts
 
-# Now copy the actual source and build in dependency order:
+# Build in dependency order:
 #   core → devtools → cli → a2a-server.
-COPY . .
 RUN npm run build --workspace @google/gemini-cli-core \
  && npm run build --workspace @google/gemini-cli-devtools \
  && npm run build --workspace @google/gemini-cli \
